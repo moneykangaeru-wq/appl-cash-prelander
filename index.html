@@ -7,6 +7,12 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --green: #22c55e;
+      --line: #e5e7eb;
+      --muted: #9ca3af;
+    }
+
     body {
       font-family: Arial, Helvetica, sans-serif;
       background: #fff;
@@ -20,21 +26,12 @@
       text-align: center;
     }
 
-    .icon {
-      width: 72px;
-      height: 72px;
-      background: #000;
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 24px;
-    }
+    .open-container { text-align: center; padding: 28px 8px; }
 
-    .icon svg {
-      width: 36px;
-      height: 36px;
-      fill: #fff;
+    .open-icon {
+      width: 76px; height: 76px; margin: 0 auto 20px; border-radius: 22px;
+      background: #121416; border: 1px solid var(--line); color: var(--green);
+      display: flex; align-items: center; justify-content: center;
     }
 
     h1 {
@@ -42,18 +39,18 @@
       font-weight: 700;
       line-height: 1.3;
       margin-bottom: 12px;
-      max-width: 320px;
     }
 
-    p {
+    .lede {
       font-size: 15px;
       color: #4b5563;
       line-height: 1.55;
       max-width: 300px;
-      margin-bottom: 32px;
+      margin: 0 auto 32px;
     }
 
-    .open-btn {
+    .cta {
+      display: block;
       background: #000;
       color: #fff;
       font-weight: 700;
@@ -64,64 +61,78 @@
       cursor: pointer;
       width: 100%;
       max-width: 360px;
+      margin: 0 auto;
+      text-decoration: none;
       box-shadow: 0 10px 20px rgba(0,0,0,0.18);
       transition: transform 0.2s ease;
     }
 
-    .open-btn:hover { transform: scale(1.02); }
+    .cta:hover { transform: scale(1.02); }
 
-    .note {
-      margin-top: 16px;
-      font-size: 13px;
-      color: #9ca3af;
+    .browser-pills {
+      display: flex; justify-content: center; gap: 8px;
+      margin-top: 16px; font-size: 13px; color: var(--muted); font-weight: 600;
     }
   </style>
 </head>
 <body>
 
-  <div class="icon">
-    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 2a8 8 0 110 16A8 8 0 0112 4zm-1 3v6h6v-2h-4V7h-2z"/>
-    </svg>
+  <div class="open-container">
+    <div class="open-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 7h10v10"></path>
+        <path d="M7 17 17 7"></path>
+      </svg>
+    </div>
+    <h1>Open in browser</h1>
+    <p class="lede">Tap Continue to open this page in your browser and claim what's yours.</p>
+    <a id="breakout-cta" class="cta" href="#">CONTINUE</a>
+    <div class="browser-pills"><span>Safari</span><span>·</span><span>Chrome</span><span>·</span><span>Secure</span></div>
   </div>
 
-  <h1>Continue to your browser for the best experience</h1>
-  <p>This page works best outside the app. Tap below to open it in your default browser.</p>
-
-  <button class="open-btn" id="openBtn">Open in Browser</button>
-
   <script>
-    const TARGET_URL = "https://myquickfind.vercel.app/";
+    var LANDER_URL = "https://myquickfind.vercel.app/";
 
-    function isAndroid() {
-      return /android/i.test(navigator.userAgent);
-    }
+    // Pass source param through if present
+    (function() {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var source = params.get("source");
+        if (source) {
+          LANDER_URL += (LANDER_URL.indexOf('?') === -1 ? '?' : '&') + 'source=' + encodeURIComponent(source);
+        }
+      } catch(e) {}
+    })();
 
-    function isIOS() {
-      return /iphone|ipad|ipod/i.test(navigator.userAgent);
-    }
-
-    document.getElementById("openBtn").addEventListener("click", function () {
-      if (isAndroid()) {
-        // Android intent to force Chrome
-        const intentUrl =
-          "intent://" +
-          TARGET_URL.replace(/^https?:\/\//, "") +
-          "#Intent;scheme=https;package=com.android.chrome;end";
-        window.location.href = intentUrl;
-
-        // Fallback: if intent didn't work, open normally
-        setTimeout(function () {
-          window.location.href = TARGET_URL;
-        }, 1500);
-
-      } else if (isIOS()) {
-        // iOS: no reliable way to force Safari, best effort
-        window.location.href = TARGET_URL;
-
-      } else {
-        window.location.href = TARGET_URL;
+    function buildBreakoutUrl() {
+      var dest = LANDER_URL;
+      var ua = navigator.userAgent || '';
+      if (/Android/i.test(ua)) {
+        return 'intent://' + dest.replace(/^https?:\/\//, '') + '#Intent;scheme=https;end;';
       }
+      if (/Instagram/i.test(ua)) {
+        return 'instagram://extbrowser/?url=' + encodeURIComponent(dest);
+      }
+      // iOS / TikTok — force Safari
+      return dest.replace(/^https:\/\//, 'x-safari-https://');
+    }
+
+    function runBreakout() {
+      var url = buildBreakoutUrl();
+      try {
+        (window.top || window).location.href = url;
+      } catch (err) {
+        window.location.href = url;
+      }
+      // Fallback: if scheme blocked after 2s, just go to lander normally
+      setTimeout(function() {
+        window.location.href = LANDER_URL;
+      }, 2000);
+    }
+
+    document.getElementById('breakout-cta').addEventListener('click', function(e) {
+      e.preventDefault();
+      runBreakout();
     });
   </script>
 
